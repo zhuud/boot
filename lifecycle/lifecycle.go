@@ -105,6 +105,9 @@ var (
 
 	timeout    = 30 * time.Second
 	phaseDelay = 2500 * time.Millisecond
+
+	// 测试可替换，避免强杀结束测试进程。
+	forceQuitFn = forceQuit
 )
 
 // SetTimeout 设置 Cleanup 运行多久后强杀进程。
@@ -211,6 +214,6 @@ func startForceQuitTimer(d time.Duration, sig os.Signal) func() {
 	if d <= 0 {
 		return func() {}
 	}
-	timer := time.AfterFunc(d, func() { forceQuit(sig) })
+	timer := time.AfterFunc(d, func() { forceQuitFn(sig) })
 	return func() { timer.Stop() }
 }

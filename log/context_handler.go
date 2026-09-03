@@ -67,8 +67,6 @@ func (h *contextHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *contextHandler) Handle(ctx context.Context, record slog.Record) error {
-	// 热路径通常至多一个非空 extractor：直接借用其切片。出现第二个非空结果才
-	// 分配合并，避免改到 extractor 返回值的共享 backing array。
 	var attrs []slog.Attr
 	copied := false
 	for _, extractor := range h.extractors {
@@ -76,16 +74,20 @@ func (h *contextHandler) Handle(ctx context.Context, record slog.Record) error {
 		if len(nextAttrs) == 0 {
 			continue
 		}
+		// 第一个直接赋值 不make
 		if len(attrs) == 0 {
 			attrs = nextAttrs
 			continue
 		}
+		// 多个ctx attrs时，第一次 合并attrs和nextAttrs
 		if !copied {
+			//make 一块新数组，把已有内容拷进去再拼后面的。这样改的是自己的切片，碰不到 extractor 返回值的底层数组
 			merged := make([]slog.Attr, 0, len(attrs)+len(nextAttrs))
 			merged = append(merged, attrs...)
 			attrs = append(merged, nextAttrs...)
 			copied = true
 		} else {
+			// 后续直接append
 			attrs = append(attrs, nextAttrs...)
 		}
 	}

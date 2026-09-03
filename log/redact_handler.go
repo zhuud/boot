@@ -9,9 +9,10 @@ import (
 const redactedValue = "***"
 
 type redactHandler struct {
-	next   slog.Handler
-	keys   map[string]struct{}
-	groups []string
+	next    slog.Handler
+	keys    map[string]struct{}
+	groups  []string
+	hasPath bool
 }
 
 // 对匹配叶子名或点分组路径的属性值脱敏为 "***"。
@@ -24,16 +25,20 @@ func newRedactHandler(next slog.Handler, keys ...string) slog.Handler {
 		return next
 	}
 	uniqueKeys := make(map[string]struct{}, len(keys))
+	hasPath := false
 	for _, key := range keys {
 		if key == "" {
 			continue
 		}
 		uniqueKeys[key] = struct{}{}
+		if strings.Contains(key, ".") {
+			hasPath = true
+		}
 	}
 	if len(uniqueKeys) == 0 {
 		return next
 	}
-	return &redactHandler{next: next, keys: uniqueKeys}
+	return &redactHandler{next: next, keys: uniqueKeys, hasPath: hasPath}
 }
 
 func (h *redactHandler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -51,16 +56,18 @@ func (h *redactHandler) Handle(ctx context.Context, record slog.Record) error {
 	record.Attrs(func(attr slog.Attr) bool {
 		redactedAttr, attrChanged := h.redactAttr(h.groups, attr)
 		if !changed {
+			// 没有变更只记录循环下标
 			if !attrChanged {
 				prefixLen++
 				return true
 			}
+			// 有变更再将之前的值复制进新record 避免大多数情况下 没有变更还要 NewRecord
 			out = slog.NewRecord(record.Time, record.Level, record.Message, record.PC)
 			copyRecordPrefix(&out, record, prefixLen)
 			changed = true
 		}
+		// 后续都是变更正常add
 		out.AddAttrs(redactedAttr)
-		prefixLen++
 		return true
 	})
 	if !changed {
@@ -100,7 +107,10 @@ func (h *redactHandler) redactAttr(groups []string, attr slog.Attr) (slog.Attr, 
 	attr.Value = attr.Value.Resolve()
 	if attr.Value.Kind() == slog.KindGroup {
 		group := attr.Value.Group()
-		groupPath := appendGroupPath(groups, attr.Key)
+		groupPath := groups
+		if h.hasPath {
+			groupPath = appendGroupPath(groups, attr.Key)
+		}
 		// group 无变化时不分配；出现第一个变化才拷贝。不能原地改 slog 内部切片。
 		for i, groupAttr := range group {
 			redactedAttr, attrChanged := h.redactAttr(groupPath, groupAttr)
@@ -132,7 +142,7 @@ func (h *redactHandler) shouldRedact(groups []string, key string) bool {
 	if _, ok := h.keys[key]; ok {
 		return true
 	}
-	if len(groups) == 0 {
+	if !h.hasPath || len(groups) == 0 {
 		return false
 	}
 	path := strings.Join(appendGroupPath(groups, key), ".")

@@ -21,7 +21,7 @@ func TestContextWithAttrs_Appends(t *testing.T) {
 }
 
 func TestContextWithAttrs_HandlesNilAndEmptyInput(t *testing.T) {
-	ctx := ContextWithAttrs(nil, slog.String("request_id", "r1"))
+	ctx := ContextWithAttrs(nil, slog.String("request_id", "r1")) //nolint:staticcheck // 文档约定 nil ctx 改用 Background
 	if attrs := AttrsFromContext(ctx); len(attrs) != 1 || attrs[0].Value.String() != "r1" {
 		t.Fatalf("AttrsFromContext() = %v; want request_id=r1", attrs)
 	}
@@ -45,7 +45,7 @@ func TestAttrsFromContext_ReturnsCopy(t *testing.T) {
 }
 
 func TestAttrsFromContext_NilOrEmptyReturnsNil(t *testing.T) {
-	if got := AttrsFromContext(nil); got != nil {
+	if got := AttrsFromContext(nil); got != nil { //nolint:staticcheck // 文档约定 nil ctx 返回 nil
 		t.Fatalf("AttrsFromContext(nil) = %v; want nil", got)
 	}
 	if got := AttrsFromContext(context.Background()); got != nil {

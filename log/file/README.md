@@ -52,7 +52,7 @@ logger := slog.New(handler)
 
 - `filename` 会在扩展名前拼接主机名和进程号，例如 `app.log` 变为 `app-hostname-pid.log`；
 - 不要用 `lifecycle.Async()` 关闭日志 Writer；
-- lumberjack 延迟打开文件，目录/权限错误可能在首次 `Write` 才返回；可用 `WithErrorFunc` 观测。
+- 构造时会创建目录并试打开文件，目录或权限错误在 `NewWriter` 返回。
 
 `NewWriter` 校验后返回原始 `*lumberjack.Logger`（`io.WriteCloser`，并提供并发安全的
 `Rotate() error`）。包本身不注册进程信号；应用可将 SIGHUP 接入 `Rotate`，也可在

@@ -100,6 +100,7 @@ forcequit_unix.go     # Unix 超时强杀（//go:build unix）
 forcequit_windows.go  # Windows 超时强杀（//go:build windows）
 forcequit_other.go    # 其余平台回退 os.Exit（//go:build !unix && !windows）
 lifecycle_test.go
+signal_unix_test.go        # Listen 子进程信号测试（//go:build unix）
 lifecycle_bench_test.go
 ```
 

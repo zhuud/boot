@@ -17,6 +17,7 @@ func resetForBench() {
 	timeout = 0
 	phaseDelay = 0
 	forceSignal = syscall.SIGTERM
+	forceQuitFn = forceQuit
 	mu.Unlock()
 }
 

@@ -110,7 +110,12 @@
   | 领域对象 | `handler`、`extractor`、`attr`、`record` | 参数里的 `h`、`r`、`a` |
   | 包装下游 | `next` | `inner`、参数里的 `h` |
 
-- `NAME-19 MUST` 单个实体、函数或回调用单数：`extractor`、`dropFunc`。切片、map 用复数：`extractors`。包含多项配置的结构体即使用一个值也叫 `Options` 或 `Config`：`handlerOptions`、`SamplingConfig`。Functional Option 函数类型本身用单数 `Option`，见 `API-04`。
+- `NAME-19 MUST` 按「一个值是一条 X 还是一组 X」命名。
+  - 单个实体、函数或回调：单数，`extractor`、`dropFunc`。
+  - 切片、map：复数，`extractors`。
+  - 一组旋钮（配置袋）：即使用一个值也叫 `Options` 或 `Config`：`registerOptions`、`handlerConfig`、`SamplingConfig`。不得用 `Option struct` 当配置袋。长期/单次分工见 `API-03`。
+  - 一条函数：Functional Option 类型名单数 `Option`，见 `API-04`。
+  - 一条数据：可用 `XxxOption struct`，如 `HeaderCallOption`；不得当作配置袋。
 - `NAME-20 SHOULD` 导出配置函数 `WithXxx`；私有构造 `newXxx` / `newXxxHandler`。实现类型不导出：`handlerConfig`、`truncateHandler`。导出回调/谓词用角色名：`DropFunc`、`ErrorFunc`。
 
 ### 示例（OK/BAD）
@@ -124,6 +129,27 @@
 | `NAME-10` | `func (c *Client) Close()` | `func (this *Client) Close()` |
 | `NAME-11` | `u.Name()`、`FetchProfile(ctx, id)` | `u.GetName()`、`GetProfile(id)` |
 | `NAME-18` | `options ...Option`、`config`、`record` | `opts`、`cfg`、`r` |
+| `NAME-19` | `registerOptions`、`type Option func(*T)`、`HeaderCallOption` | `type registerOption struct` 当配置袋 |
+
+```go
+// OK: 配置袋是一组旋钮；Option 是一条函数。
+type registerOptions struct {
+	phase phase
+	async bool
+}
+type Option func(*registerOptions)
+
+// OK: 一条调用期数据，不是配置袋。
+type HeaderCallOption struct {
+	Key, Value string
+}
+
+// BAD: 用 Option struct 当配置袋。
+type registerOption struct {
+	phase phase
+	async bool
+}
+```
 
 ```go
 // OK: 零值明确表示未指定。
@@ -494,8 +520,8 @@ jobs := make(chan Job, 100)
 
 - `API-01 MUST` `New` / `NewXxx` / `Open` 返回立即可用的对象，必要时同时返回 error。
 - `API-02 SHOULD` 在不掩盖缺失的必需配置或非法业务状态的前提下，让类型零值具有安全、确定且文档化的行为。零值不必代表有效业务状态；枚举遵守 `NAME-13`。无法满足时应提供构造函数，且对零值的操作返回明确错误而不是 panic。
-- `API-03 MUST` 长期配置使用 `Config`（随组件组装或存活，如 `handlerConfig`、`tls.Config`）；单次调用配置使用 `Options`（如 `registerOptions`、`sql.TxOptions`）。二者不混用。
-- `API-04 SHOULD` 可选参数较多且 API 需平滑扩展时使用 Functional Options。类型名单数 `Option`，对外函数 `WithXxx`。
+- `API-03 MUST` 配置袋只用 `Options` / `Config`，不得用 `Option struct`。长期配置使用 `Config`（随组件组装或存活，如 `handlerConfig`、`tls.Config`）；单次调用配置使用 `Options`（如 `registerOptions`、`sql.TxOptions`）。二者不混用。一条数据仍可用 `XxxOption`，见 `NAME-19`。
+- `API-04 SHOULD` 可选参数较多且 API 需平滑扩展时使用 Functional Options。函数类型名单数 `Option`，对外函数 `WithXxx`。被 Option 改写的袋子遵守 `API-03`。
 - `API-05 MUST` Functional Option 的标量/回调采用“最后一次生效”，集合采用“累加”；`nil` option 跳过。有禁用语义时，`nil` 或非正值表示禁用，并在 godoc 写清。循环使用 `for _, option := range options`，不要用 `opts`/`opt`。
 - `API-06 MUST NOT` 暴露语义不明的裸布尔或数字参数，如 `Open(addr, false, true)`；改用具名 option 或自定义类型。
 
@@ -816,6 +842,7 @@ return store.Save(ctx, item)
 - [ ] CI 运行普通测试、race 测试、支持矩阵跨平台编译，并比较 benchmark 基线。
 - [ ] 包名具体；导出名不重复包名；缩写整体大小写；`Id` 写成 `Id` 不是 `ID`。
 - [ ] 参数用 `options`/`option`、`config`、`record`，不用 `opts`/`cfg`/`r`。
+- [ ] 配置袋用 `Options`/`Config`，不用 `Option struct`；一条函数用 `Option`，一条数据才用 `XxxOption`。
 - [ ] 导出符号有中文 godoc（以名字开头、句号结尾）；注释与行为一致。
 - [ ] 所有 error 已处理；错误文案合规；同一错误只处理一次。
 - [ ] `ctx` 是第一参数且未存入结构体；派生 Context 有明确语义并调用 cancel。

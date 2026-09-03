@@ -48,16 +48,18 @@ func (h *truncateHandler) Handle(ctx context.Context, record slog.Record) error 
 		truncatedAttr, attrChanged, attrTruncated := h.truncateAttr(attr)
 		truncated = truncated || attrTruncated
 		if !changed {
+			// 没有变更只记录循环下标
 			if !attrChanged {
 				prefixLen++
 				return true
 			}
+			// 有变更再将之前的值复制进新record 避免大多数情况下 没有变更还要 NewRecord
 			out = slog.NewRecord(record.Time, record.Level, message, record.PC)
 			copyRecordPrefix(&out, record, prefixLen)
 			changed = true
 		}
+		// 后续都是变更正常add
 		out.AddAttrs(truncatedAttr)
-		prefixLen++
 		return true
 	})
 	if !changed {

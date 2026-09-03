@@ -131,6 +131,22 @@ func TestRedactHandler_Handle(t *testing.T) {
 			t.Fatalf("id = %q; want 1", group["id"])
 		}
 	})
+	t.Run("leaf key matches inside named group", func(t *testing.T) {
+		next := &captureHandler{}
+		handler := newRedactHandler(next, "password")
+		record := slog.NewRecord(time.Now(), slog.LevelInfo, "login", 0)
+		record.AddAttrs(slog.Group("user", slog.String("password", "secret"), slog.String("id", "1")))
+		if err := handler.Handle(context.Background(), record); err != nil {
+			t.Fatal(err)
+		}
+		group := attrGroup(next.last(), "user")
+		if group["password"] != redactedValue {
+			t.Fatalf("user.password = %q; want %q", group["password"], redactedValue)
+		}
+		if group["id"] != "1" {
+			t.Fatalf("user.id = %q; want 1", group["id"])
+		}
+	})
 	t.Run("group preserves resolved LogValuer", func(t *testing.T) {
 		next := &captureHandler{}
 		handler := newRedactHandler(next, "password")
@@ -185,5 +201,11 @@ func TestRedactAttr_UnchangedGroupDoesNotReportChange(t *testing.T) {
 	}
 	if group := got.Value.Group(); len(group) != 1 || group[0].Value.String() != "GET" {
 		t.Fatalf("redactAttr() group = %v; want method=GET", group)
+	}
+	allocs := testing.AllocsPerRun(100, func() {
+		_, _ = handler.redactAttr(nil, attr)
+	})
+	if allocs != 0 {
+		t.Fatalf("unchanged group allocs = %v; want 0", allocs)
 	}
 }

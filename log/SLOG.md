@@ -3,7 +3,7 @@
 本文说明标准库 `log/slog` 的对象分层、一次打日志的调用链，以及常用 API 的语义与性能取舍。  
 本包（`boot/log`）只构建并装饰 Handler；业务打日志仍走 slog。
 
-依据 Go 1.26 `log/slog` 源码（`logger.go` / `record.go` / `handler.go` / `attr.go`）。
+依据当前模块 [go.mod](../go.mod) 对应版本的 `log/slog` 源码（`logger.go` / `record.go` / `handler.go` / `attr.go`）。
 
 ---
 

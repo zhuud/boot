@@ -44,7 +44,7 @@ func WithLocalTime(enabled bool) Option {
 }
 
 // NewWriter 校验后返回原始 [*lumberjack.Logger]。filename 在扩展名前拼接主机名和 pid。
-// lumberjack 延迟打开文件，目录或权限错误可能在首次 Write 才返回。
+// 构造时创建目录并试打开文件；目录或权限错误在此时返回。
 func NewWriter(filename string, options ...Option) (*lumberjack.Logger, error) {
 	unique, err := uniqueFilename(filename)
 	if err != nil {
@@ -78,6 +78,17 @@ func validate(writer *lumberjack.Logger) error {
 	}
 	if writer.MaxAge < 0 {
 		return fmt.Errorf("file: maxAge must be >= 0")
+	}
+	dir := filepath.Dir(writer.Filename)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("file: mkdir %s: %w", dir, err)
+	}
+	file, err := os.OpenFile(writer.Filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("file: open %s: %w", writer.Filename, err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("file: close %s: %w", writer.Filename, err)
 	}
 	return nil
 }

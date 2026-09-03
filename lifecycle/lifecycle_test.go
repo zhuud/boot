@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"errors"
+	"os"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -21,6 +22,7 @@ func reset(t *testing.T) {
 	timeout = 0
 	phaseDelay = 0
 	forceSignal = syscall.SIGTERM
+	forceQuitFn = forceQuit
 	mu.Unlock()
 }
 
@@ -316,3 +318,54 @@ func TestPhaseDelay_NonPositiveDisablesDelay(t *testing.T) {
 type closerFunc func() error
 
 func (f closerFunc) Close() error { return f() }
+
+func TestCleanup_TimeoutCallsQuit(t *testing.T) {
+	reset(t)
+	var called atomic.Bool
+	forceQuitFn = func(os.Signal) { called.Store(true) }
+	t.Cleanup(func() { forceQuitFn = forceQuit })
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	Register(func() error {
+		close(started)
+		<-release
+		return nil
+	})
+	SetTimeout(5 * time.Millisecond)
+
+	errc := make(chan error, 1)
+	go func() { errc <- Cleanup() }()
+	<-started
+
+	deadline := time.After(2 * time.Second)
+	for !called.Load() {
+		select {
+		case <-deadline:
+			t.Fatal("forceQuitFn not called; want timeout quit")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+	close(release)
+	if err := <-errc; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCleanup_NonPositiveTimeoutDoesNotQuit(t *testing.T) {
+	reset(t)
+	var called atomic.Bool
+	forceQuitFn = func(os.Signal) { called.Store(true) }
+	t.Cleanup(func() { forceQuitFn = forceQuit })
+
+	SetTimeout(0)
+	Register(func() error { return nil })
+	if err := Cleanup(); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if called.Load() {
+		t.Fatal("forceQuitFn called; want disabled")
+	}
+}

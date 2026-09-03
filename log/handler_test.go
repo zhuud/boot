@@ -239,11 +239,11 @@ func TestNewHandler_ErrorFunc(t *testing.T) {
 			t.Fatalf("ErrorFunc calls = %d; want 1", got)
 		}
 	})
-	t.Run("no default callback on write error", func(t *testing.T) {
+	t.Run("no default callback on write error", func(_ *testing.T) {
 		logger := slog.New(NewHandler(WithWriter(failWriter{}), WithFormat(FormatJSON)))
 		logger.Info("ready")
 	})
-	t.Run("recovers base panic without callback", func(t *testing.T) {
+	t.Run("recovers base panic without callback", func(_ *testing.T) {
 		logger := slog.New(NewHandler(WithWriter(panicWriter{})))
 		logger.Info("ready")
 	})

@@ -37,6 +37,17 @@ func TestNewWriterConfigBoundaries(t *testing.T) {
 	}
 }
 
+func TestNewWriter_RejectsWhenParentIsFile(t *testing.T) {
+	parent := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(parent, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := NewWriter(filepath.Join(parent, "app.log"))
+	if err == nil {
+		t.Fatal("NewWriter() error = nil; want mkdir or open error")
+	}
+}
+
 func TestNewWriterUniquifiesFilename(t *testing.T) {
 	filename := filepath.Join(t.TempDir(), "app.log")
 	writer, err := NewWriter(filename)

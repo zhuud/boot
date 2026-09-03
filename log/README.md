@@ -3,7 +3,7 @@
 基于标准库 `log/slog` 的 Handler 构建与装饰：编码/级别、Context attrs、脱敏、截断、采样与输出错误观测。  
 不提供包级 `Info`；打日志直接用 `*slog.Logger` / `slog`。
 
-Go 版本：1.26。
+Go 版本与模块根目录 [go.mod](../go.mod) 一致。
 
 ## 安装
 
